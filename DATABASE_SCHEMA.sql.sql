@@ -2,10 +2,6 @@
 -- Personal Finance Tracker - MySQL Database Schema
 -- ================================================
 
--- Create Database
-CREATE DATABASE IF NOT EXISTS finance_tracker;
-USE finance_tracker;
-
 -- ================================================
 -- Table: categories
 -- Menyimpan kategori transaksi (income/expense)
