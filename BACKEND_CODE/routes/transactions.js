@@ -35,13 +35,15 @@ router.get('/:id', async (req, res, next) => {
 });
 
 // POST create transaction
+// POST create transaction
 router.post('/', async (req, res, next) => {
   try {
     const { name, amount, category, type, date, emoji } = req.body;
     const id = uuidv4();
     
+    // UBAH 'category' MENJADI 'category_id' SESUAI KOLOM MYSQL JIKA RELEVAN
     await pool.query(
-      'INSERT INTO transactions (id, name, amount, category, type, date, emoji) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO transactions (id, name, amount, category_id, type, date, emoji) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [id, name, amount, category, type, date, emoji]
     );
     
@@ -60,12 +62,14 @@ router.post('/', async (req, res, next) => {
 });
 
 // PUT update transaction
+// PUT update transaction
 router.put('/:id', async (req, res, next) => {
   try {
     const { name, amount, category, type, date, emoji } = req.body;
     
+    // UBAH 'category = ?' MENJADI 'category_id = ?'
     const [result] = await pool.query(
-      'UPDATE transactions SET name = ?, amount = ?, category = ?, type = ?, date = ?, emoji = ? WHERE id = ?',
+      'UPDATE transactions SET name = ?, amount = ?, category_id = ?, type = ?, date = ?, emoji = ? WHERE id = ?',
       [name, amount, category, type, date, emoji, req.params.id]
     );
     
