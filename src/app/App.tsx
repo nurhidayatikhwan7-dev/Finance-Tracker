@@ -74,10 +74,12 @@ const initialSavingsGoals: SavingsGoal[] = [
   { id: '3', name: 'Laptop Baru', targetAmount: 15000000, currentAmount: 8000000, emoji: '💻', deadline: '2026-09-30' },
 ];
 
-const API_TRANSACTIONS_URL = 'https://finance-tracker-cl66.onrender.com/api/transactions';
-const API_SAVINGS_URL = 'https://finance-tracker-cl66.onrender.com/api/savings';
-const API_BUDGETS_URL = 'https://finance-tracker-cl66.onrender.com/api/budgets';
-const API_CATEGORIES_URL = 'https://finance-tracker-cl66.onrender.com/api/categories';
+const BASE_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:3001/api';
+
+const API_TRANSACTIONS_URL = `${BASE_URL}/transactions`;
+const API_SAVINGS_URL = `${BASE_URL}/savings`;
+const API_BUDGETS_URL = `${BASE_URL}/budgets`;
+const API_CATEGORIES_URL = `${BASE_URL}/categories`;
 
 export default function App() {
   const [activeView, setActiveView] = useState<'dashboard' | 'transactions' | 'budget' | 'savings' | 'categories'>('dashboard');
