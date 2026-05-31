@@ -20,6 +20,7 @@ router.get('/', async (req, res, next) => {
 
     res.json(camelCaseRows);
   } catch (error) {
+    console.error("❌ Eror GET Savings:", error);
     next(error);
   }
 });
@@ -28,22 +29,30 @@ router.get('/', async (req, res, next) => {
 router.post('/', async (req, res, next) => {
   try {
     const { name, targetAmount, currentAmount, emoji, deadline } = req.body;
-    const id = uuidv4();
     
+    // TRICK: Jika UUID kepanjangan membuat database crash, kita buat cadangan ID berbasis timestamp unik
+    const id = 'sv-' + Date.now().toString().slice(-6); 
+    
+    // Pastikan format tanggal aman (jika deadline kosong, set null atau tanggal hari ini)
+    const safeDeadline = deadline ? deadline.slice(0, 10) : null;
+
+    console.log("Mengirim data ke MySQL:", { id, name, targetAmount, currentAmount, emoji, safeDeadline });
+
     await pool.query(
       'INSERT INTO savings (id, name, target_amount, current_amount, emoji, deadline) VALUES (?, ?, ?, ?, ?, ?)',
-      [id, name, targetAmount, currentAmount || 0, emoji, deadline]
+      [id, name, Number(targetAmount), Number(currentAmount) || 0, emoji, safeDeadline]
     );
     
     res.status(201).json({
       id,
       name,
-      targetAmount,
-      currentAmount: currentAmount || 0,
+      targetAmount: Number(targetAmount),
+      currentAmount: Number(currentAmount) || 0,
       emoji,
-      deadline
+      deadline: safeDeadline
     });
   } catch (error) {
+    console.error("❌ BIANG KEROK EROR 500 POST SAVINGS:", error); // Kode ini akan memuntahkan eror asli di Render!
     next(error);
   }
 });
@@ -52,10 +61,11 @@ router.post('/', async (req, res, next) => {
 router.put('/:id', async (req, res, next) => {
   try {
     const { name, targetAmount, currentAmount, emoji, deadline } = req.body;
-    
+    const safeDeadline = deadline ? deadline.slice(0, 10) : null;
+
     const [result] = await pool.query(
       'UPDATE savings SET name = ?, target_amount = ?, current_amount = ?, emoji = ?, deadline = ? WHERE id = ?',
-      [name, targetAmount, currentAmount, emoji, deadline, req.params.id]
+      [name, Number(targetAmount), Number(currentAmount), emoji, safeDeadline, req.params.id]
     );
     
     if (result.affectedRows === 0) {
@@ -65,12 +75,13 @@ router.put('/:id', async (req, res, next) => {
     res.json({
       id: req.params.id,
       name,
-      targetAmount,
-      currentAmount,
+      targetAmount: Number(targetAmount),
+      currentAmount: Number(currentAmount),
       emoji,
-      deadline
+      deadline: safeDeadline
     });
   } catch (error) {
+    console.error("❌ Eror PUT Savings:", error);
     next(error);
   }
 });
@@ -78,17 +89,13 @@ router.put('/:id', async (req, res, next) => {
 // DELETE savings goal
 router.delete('/:id', async (req, res, next) => {
   try {
-    const [result] = await pool.query(
-      'DELETE FROM savings WHERE id = ?',
-      [req.params.id]
-    );
-    
+    const [result] = await pool.query('DELETE FROM savings WHERE id = ?', [req.params.id]);
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Savings goal not found' });
     }
-    
     res.json({ message: 'Savings goal deleted successfully' });
   } catch (error) {
+    console.error("❌ Eror DELETE Savings:", error);
     next(error);
   }
 });
