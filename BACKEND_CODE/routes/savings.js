@@ -1,10 +1,8 @@
 import express from 'express';
 import pool from '../config/database.js';
-import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
 
-// GET all savings goals
 router.get('/', async (req, res, next) => {
   try {
     const [rows] = await pool.query('SELECT * FROM savings ORDER BY deadline');
@@ -20,23 +18,19 @@ router.get('/', async (req, res, next) => {
 
     res.json(camelCaseRows);
   } catch (error) {
-    console.error("❌ Eror GET Savings:", error);
     next(error);
   }
 });
 
-// POST create savings goal
 router.post('/', async (req, res, next) => {
   try {
     const { name, targetAmount, currentAmount, emoji, deadline } = req.body;
-    
-    // TRICK: Jika UUID kepanjangan membuat database crash, kita buat cadangan ID berbasis timestamp unik
     const id = 'sv-' + Date.now().toString().slice(-6); 
     
-    // Pastikan format tanggal aman (jika deadline kosong, set null atau tanggal hari ini)
-    const safeDeadline = deadline ? deadline.slice(0, 10) : null;
-
-    console.log("Mengirim data ke MySQL:", { id, name, targetAmount, currentAmount, emoji, safeDeadline });
+    let safeDeadline = null;
+    if (deadline) {
+      safeDeadline = deadline.includes('T') ? deadline.split('T')[0] : deadline.slice(0, 10);
+    }
 
     await pool.query(
       'INSERT INTO savings (id, name, target_amount, current_amount, emoji, deadline) VALUES (?, ?, ?, ?, ?, ?)',
@@ -52,16 +46,18 @@ router.post('/', async (req, res, next) => {
       deadline: safeDeadline
     });
   } catch (error) {
-    console.error("❌ BIANG KEROK EROR 500 POST SAVINGS:", error); // Kode ini akan memuntahkan eror asli di Render!
     next(error);
   }
 });
 
-// PUT update savings goal
 router.put('/:id', async (req, res, next) => {
   try {
     const { name, targetAmount, currentAmount, emoji, deadline } = req.body;
-    const safeDeadline = deadline ? deadline.slice(0, 10) : null;
+    
+    let safeDeadline = null;
+    if (deadline) {
+      safeDeadline = deadline.includes('T') ? deadline.split('T')[0] : deadline.slice(0, 10);
+    }
 
     const [result] = await pool.query(
       'UPDATE savings SET name = ?, target_amount = ?, current_amount = ?, emoji = ?, deadline = ? WHERE id = ?',
@@ -81,12 +77,10 @@ router.put('/:id', async (req, res, next) => {
       deadline: safeDeadline
     });
   } catch (error) {
-    console.error("❌ Eror PUT Savings:", error);
     next(error);
   }
 });
 
-// DELETE savings goal
 router.delete('/:id', async (req, res, next) => {
   try {
     const [result] = await pool.query('DELETE FROM savings WHERE id = ?', [req.params.id]);
@@ -95,7 +89,6 @@ router.delete('/:id', async (req, res, next) => {
     }
     res.json({ message: 'Savings goal deleted successfully' });
   } catch (error) {
-    console.error("❌ Eror DELETE Savings:", error);
     next(error);
   }
 });
