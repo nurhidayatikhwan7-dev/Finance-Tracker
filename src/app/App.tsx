@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { Home, Receipt, PieChart, Target, FolderOpen, Plus } from 'lucide-react';
@@ -53,27 +53,6 @@ const initialCategories: Category[] = [
   { id: '8', name: 'Health & Fitness', emoji: '🍎', type: 'expense' },
 ];
 
-const initialTransactions: Transaction[] = [
-  { id: '1', name: 'Gaji Bulanan', amount: 8000000, category: 'Pemasukan', type: 'income', date: '2026-05-01', emoji: '💰' },
-  { id: '2', name: 'Makan Siang', amount: 50000, category: 'Food & Beverage', type: 'expense', date: '2026-05-23', emoji: '🍔' },
-  { id: '3', name: 'Bensin', amount: 100000, category: 'Transport', type: 'expense', date: '2026-05-22', emoji: '🚗' },
-  { id: '4', name: 'Netflix', amount: 186000, category: 'Entertainment', type: 'expense', date: '2026-05-20', emoji: '🎮' },
-  { id: '5', name: 'Belanja Bulanan', amount: 1500000, category: 'Shopping', type: 'expense', date: '2026-05-15', emoji: '🛍️' },
-];
-
-const initialBudgets: BudgetItem[] = [
-  { id: '1', categoryId: '2', amount: 2000000, period: 'monthly' },
-  { id: '2', categoryId: '3', amount: 500000, period: 'monthly' },
-  { id: '3', categoryId: '4', amount: 800000, period: 'monthly' },
-  { id: '4', categoryId: '5', amount: 200000, period: 'monthly' },
-];
-
-const initialSavingsGoals: SavingsGoal[] = [
-  { id: '1', name: 'Liburan Bali', targetAmount: 10000000, currentAmount: 3500000, emoji: '🏖️', deadline: '2026-12-31' },
-  { id: '2', name: 'Emergency Fund', targetAmount: 30000000, currentAmount: 15000000, emoji: '🚨', deadline: '2027-06-30' },
-  { id: '3', name: 'Laptop Baru', targetAmount: 15000000, currentAmount: 8000000, emoji: '💻', deadline: '2026-09-30' },
-];
-
 const BASE_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:3001/api';
 
 const API_TRANSACTIONS_URL = `${BASE_URL}/transactions`;
@@ -83,11 +62,34 @@ const API_CATEGORIES_URL = `${BASE_URL}/categories`;
 
 export default function App() {
   const [activeView, setActiveView] = useState<'dashboard' | 'transactions' | 'budget' | 'savings' | 'categories'>('dashboard');
-  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>(initialCategories);
-  const [budgets, setBudgets] = useState<BudgetItem[]>(initialBudgets);
-  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>(initialSavingsGoals);
+  const [budgets, setBudgets] = useState<BudgetItem[]>([]);
+  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
   const [showAddTransaction, setShowAddTransaction] = useState(false);
+
+  // 1. AMBIL DATA DARI DATABASE SECARA REAL-TIME SAAT WEB DIBUKA
+  const fetchAllData = async () => {
+    try {
+      const [resTransactions, resSavings, resBudgets, resCategories] = await Promise.all([
+        axios.get(API_TRANSACTIONS_URL),
+        axios.get(API_SAVINGS_URL),
+        axios.get(API_BUDGETS_URL),
+        axios.get(API_CATEGORIES_URL).catch(() => ({ data: initialCategories }))
+      ]);
+
+      if (resTransactions.data) setTransactions(resTransactions.data);
+      if (resSavings.data) setSavingsGoals(resSavings.data);
+      if (resBudgets.data) setBudgets(resBudgets.data);
+      if (resCategories.data && resCategories.data.length > 0) setCategories(resCategories.data);
+    } catch (error) {
+      console.error("Gagal sinkronisasi dengan database cloud:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchAllData();
+  }, []);
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
@@ -100,8 +102,9 @@ export default function App() {
   const addTransaction = async (transaction: Omit<Transaction, 'id'>) => {
     try {
       const response = await axios.post(API_TRANSACTIONS_URL, transaction);
-      if (response.status === 201) {
+      if (response.status === 200 || response.status === 201) {
         setTransactions([response.data, ...transactions]);
+        fetchAllData(); // Refresh data global
       }
     } catch (error) {
       console.error(error);
@@ -119,10 +122,7 @@ export default function App() {
       confirmButtonText: 'Ya, Hapus!',
       cancelButtonText: 'Batal',
       background: '#ffffff',
-      customClass: {
-        title: 'text-slate-800 font-bold',
-        popup: 'rounded-xl'
-      }
+      customClass: { title: 'text-slate-800 font-bold', popup: 'rounded-xl' }
     });
 
     if (!result.isConfirmed) return;
@@ -141,7 +141,7 @@ export default function App() {
   const updateTransaction = async (id: string, updates: Partial<Transaction>) => {
     try {
       const response = await axios.put(`${API_TRANSACTIONS_URL}/${id}`, updates);
-      if (response.status === 200) {
+      if (response.status === 200 || response.status === 201) {
         setTransactions(transactions.map(t => t.id === id ? { ...t, ...updates } : t));
       }
     } catch (error) {
@@ -152,7 +152,7 @@ export default function App() {
   const addCategory = async (category: Omit<Category, 'id'>) => {
     try {
       const response = await axios.post(API_CATEGORIES_URL, category);
-      if (response.status === 201) {
+      if (response.status === 200 || response.status === 201) {
         setCategories([...categories, response.data]);
       }
     } catch (error) {
@@ -171,10 +171,7 @@ export default function App() {
       confirmButtonText: 'Ya, Hapus!',
       cancelButtonText: 'Batal',
       background: '#ffffff',
-      customClass: {
-        title: 'text-slate-800 font-bold',
-        popup: 'rounded-xl'
-      }
+      customClass: { title: 'text-slate-800 font-bold', popup: 'rounded-xl' }
     });
 
     if (!result.isConfirmed) return;
@@ -193,7 +190,7 @@ export default function App() {
   const addBudget = async (budget: Omit<BudgetItem, 'id'>) => {
     try {
       const response = await axios.post(API_BUDGETS_URL, budget);
-      if (response.status === 201) {
+      if (response.status === 200 || response.status === 201) {
         setBudgets([...budgets, response.data]);
       }
     } catch (error) {
@@ -204,7 +201,7 @@ export default function App() {
   const updateBudget = async (id: string, amount: number) => {
     try {
       const response = await axios.put(`${API_BUDGETS_URL}/${id}`, { amount });
-      if (response.status === 200) {
+      if (response.status === 200 || response.status === 201) {
         setBudgets(budgets.map(b => b.id === id ? { ...b, amount } : b));
       }
     } catch (error) {
@@ -223,10 +220,7 @@ export default function App() {
       confirmButtonText: 'Ya, Hapus!',
       cancelButtonText: 'Batal',
       background: '#ffffff',
-      customClass: {
-        title: 'text-slate-800 font-bold',
-        popup: 'rounded-xl'
-      }
+      customClass: { title: 'text-slate-800 font-bold', popup: 'rounded-xl' }
     });
 
     if (!result.isConfirmed) return;
@@ -245,19 +239,25 @@ export default function App() {
   const addSavingsGoal = async (goal: Omit<SavingsGoal, 'id'>) => {
     try {
       const response = await axios.post(API_SAVINGS_URL, goal);
-      if (response.status === 201) {
+      if (response.status === 200 || response.status === 201) {
+        // Gabungkan data dari database agar ID UUID barunya ikut tersimpan
         setSavingsGoals([...savingsGoals, response.data]);
+        fetchAllData(); 
       }
     } catch (error) {
       console.error(error);
     }
   };
 
+  // SINKRONISASI EDIT & UPDATE TABUNGAN UNTUK SEMUA LAPTOP
   const updateSavingsGoal = async (id: string, updates: Partial<SavingsGoal>) => {
     try {
       const response = await axios.put(`${API_SAVINGS_URL}/${id}`, updates);
-      if (response.status === 200) {
-        setSavingsGoals(savingsGoals.map(g => g.id === id ? { ...g, ...updates } : g));
+      if (response.status === 200 || response.status === 201) {
+        setSavingsGoals(prevGoals => 
+          prevGoals.map(g => g.id === id ? { ...g, ...updates } : g)
+        );
+        fetchAllData(); // Tarik ulang data segar dari database
       }
     } catch (error) {
       console.error(error);
@@ -275,10 +275,7 @@ export default function App() {
       confirmButtonText: 'Ya, Hapus!',
       cancelButtonText: 'Batal',
       background: '#ffffff',
-      customClass: {
-        title: 'text-slate-800 font-bold',
-        popup: 'rounded-xl'
-      }
+      customClass: { title: 'text-slate-800 font-bold', popup: 'rounded-xl' }
     });
 
     if (!result.isConfirmed) return;
