@@ -68,7 +68,15 @@ export default function App() {
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
   const [showAddTransaction, setShowAddTransaction] = useState(false);
 
-  // 1. AMBIL DATA DARI DATABASE SECARA REAL-TIME SAAT WEB DIBUKA
+  const navItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: Home },
+    { id: 'transactions', label: 'Transaksi', icon: Receipt },
+    { id: 'budget', label: 'Budget', icon: PieChart },
+    { id: 'savings', label: 'Target Tabungan', icon: Target },
+    { id: 'categories', label: 'Kategori', icon: FolderOpen },
+  ];
+
+  // 🔄 1. FUNGSI UTAMA MENGAMBIL DATA REAL-TIME DARI DATABASE CLOUD
   const fetchAllData = async () => {
     try {
       const [resTransactions, resSavings, resBudgets, resCategories] = await Promise.all([
@@ -83,28 +91,21 @@ export default function App() {
       if (resBudgets.data) setBudgets(resBudgets.data);
       if (resCategories.data && resCategories.data.length > 0) setCategories(resCategories.data);
     } catch (error) {
-      console.error("Gagal sinkronisasi dengan database cloud:", error);
+      console.error("Gagal sinkronisasi data dengan database cloud:", error);
     }
   };
 
+  // Jalankan fetch data otomatis saat web pertama kali dibuka oleh siapa pun
   useEffect(() => {
     fetchAllData();
   }, []);
-
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: Home },
-    { id: 'transactions', label: 'Transaksi', icon: Receipt },
-    { id: 'budget', label: 'Budget', icon: PieChart },
-    { id: 'savings', label: 'Target Tabungan', icon: Target },
-    { id: 'categories', label: 'Kategori', icon: FolderOpen },
-  ];
 
   const addTransaction = async (transaction: Omit<Transaction, 'id'>) => {
     try {
       const response = await axios.post(API_TRANSACTIONS_URL, transaction);
       if (response.status === 200 || response.status === 201) {
         setTransactions([response.data, ...transactions]);
-        fetchAllData(); // Refresh data global
+        fetchAllData(); // Tarik data segar
       }
     } catch (error) {
       console.error(error);
@@ -132,6 +133,7 @@ export default function App() {
       if (response.status === 200) {
         setTransactions(transactions.filter(t => t.id !== id));
         Swal.fire({ title: 'Terhapus!', text: 'Transaksi berhasil dihapus.', icon: 'success', confirmButtonColor: '#3b82f6' });
+        fetchAllData();
       }
     } catch (error) {
       console.error(error);
@@ -143,6 +145,7 @@ export default function App() {
       const response = await axios.put(`${API_TRANSACTIONS_URL}/${id}`, updates);
       if (response.status === 200 || response.status === 201) {
         setTransactions(transactions.map(t => t.id === id ? { ...t, ...updates } : t));
+        fetchAllData();
       }
     } catch (error) {
       console.error(error);
@@ -154,6 +157,7 @@ export default function App() {
       const response = await axios.post(API_CATEGORIES_URL, category);
       if (response.status === 200 || response.status === 201) {
         setCategories([...categories, response.data]);
+        fetchAllData();
       }
     } catch (error) {
       console.error(error);
@@ -181,6 +185,7 @@ export default function App() {
       if (response.status === 200) {
         setCategories(categories.filter(c => c.id !== id));
         Swal.fire({ title: 'Terhapus!', text: 'Kategori berhasil dihapus.', icon: 'success', confirmButtonColor: '#3b82f6' });
+        fetchAllData();
       }
     } catch (error) {
       console.error(error);
@@ -192,6 +197,7 @@ export default function App() {
       const response = await axios.post(API_BUDGETS_URL, budget);
       if (response.status === 200 || response.status === 201) {
         setBudgets([...budgets, response.data]);
+        fetchAllData();
       }
     } catch (error) {
       console.error(error);
@@ -203,6 +209,7 @@ export default function App() {
       const response = await axios.put(`${API_BUDGETS_URL}/${id}`, { amount });
       if (response.status === 200 || response.status === 201) {
         setBudgets(budgets.map(b => b.id === id ? { ...b, amount } : b));
+        fetchAllData();
       }
     } catch (error) {
       console.error(error);
@@ -230,6 +237,7 @@ export default function App() {
       if (response.status === 200) {
         setBudgets(budgets.filter(b => b.id !== id));
         Swal.fire({ title: 'Terhapus!', text: 'Budget berhasil dihapus.', icon: 'success', confirmButtonColor: '#3b82f6' });
+        fetchAllData();
       }
     } catch (error) {
       console.error(error);
@@ -240,16 +248,15 @@ export default function App() {
     try {
       const response = await axios.post(API_SAVINGS_URL, goal);
       if (response.status === 200 || response.status === 201) {
-        // Gabungkan data dari database agar ID UUID barunya ikut tersimpan
         setSavingsGoals([...savingsGoals, response.data]);
-        fetchAllData(); 
+        fetchAllData();
       }
     } catch (error) {
       console.error(error);
     }
   };
 
-  // SINKRONISASI EDIT & UPDATE TABUNGAN UNTUK SEMUA LAPTOP
+  // 🛠️ FIX GERAKAN MUTASI EDIT & TAMBAH UANG SECARA AMAN & REAL-TIME
   const updateSavingsGoal = async (id: string, updates: Partial<SavingsGoal>) => {
     try {
       const response = await axios.put(`${API_SAVINGS_URL}/${id}`, updates);
@@ -257,7 +264,7 @@ export default function App() {
         setSavingsGoals(prevGoals => 
           prevGoals.map(g => g.id === id ? { ...g, ...updates } : g)
         );
-        fetchAllData(); // Tarik ulang data segar dari database
+        fetchAllData(); // Tarik ulang data segar agar langsung sinkron antar laptop
       }
     } catch (error) {
       console.error(error);
@@ -285,6 +292,7 @@ export default function App() {
       if (response.status === 200) {
         setSavingsGoals(savingsGoals.filter(g => g.id !== id));
         Swal.fire({ title: 'Terhapus!', text: 'Target tabungan berhasil dihapus.', icon: 'success', confirmButtonColor: '#3b82f6' });
+        fetchAllData();
       }
     } catch (error) {
       console.error(error);
