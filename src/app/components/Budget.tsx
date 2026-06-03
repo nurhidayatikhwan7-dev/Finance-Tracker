@@ -88,11 +88,22 @@ export default function Budget({ budgets, categories, transactions, onAdd, onUpd
       minimumFractionDigits: 0,
     }).format(amount);
   };
+  
+ // 🛡️ Pastikan semua item dikonversi ke Number secara ketat untuk mencegah NaN
+  const totalBudget = budgets.reduce((sum, b) => {
+    const amount = Number(b.amount);
+    return sum + (isNaN(amount) ? 0 : amount);
+  }, 0);
 
-  const totalBudget = budgets.reduce((sum, b) => sum + b.amount, 0);
-  const totalSpent = budgetData.reduce((sum, b) => sum + b.spent, 0);
+  // Paksa objek 'b' dibaca sebagai 'any' agar TypeScript tidak protes tentang properti spent
+  const totalSpent = (typeof budgetData !== 'undefined' ? budgetData : budgets).reduce((sum, b: any) => {
+    const spent = Number(b.spent || 0);
+    return sum + (isNaN(spent) ? 0 : spent);
+  }, 0);
+
+  // Hitung sisa budget secara aman
   const totalRemaining = totalBudget - totalSpent;
-
+  
   return (
     <div className="p-8">
       <div className="mb-8 flex items-center justify-between">
