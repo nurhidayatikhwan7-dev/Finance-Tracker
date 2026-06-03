@@ -59,9 +59,13 @@ router.put('/:id', async (req, res, next) => {
       safeDeadline = deadline.includes('T') ? deadline.split('T')[0] : deadline.slice(0, 10);
     }
 
+    // 🛡️ AMANKAN ANGKA: Jika hasil konversi adalah NaN, otomatis gunakan 0 atau angka dari frontend secara aman
+    const safeTargetAmount = isNaN(Number(targetAmount)) ? 0 : Number(targetAmount);
+    const safeCurrentAmount = isNaN(Number(currentAmount)) ? 0 : Number(currentAmount);
+
     const [result] = await pool.query(
       'UPDATE savings SET name = ?, target_amount = ?, current_amount = ?, emoji = ?, deadline = ? WHERE id = ?',
-      [name, Number(targetAmount), Number(currentAmount), emoji, safeDeadline, req.params.id]
+      [name, safeTargetAmount, safeCurrentAmount, emoji, safeDeadline, req.params.id]
     );
     
     if (result.affectedRows === 0) {
@@ -71,8 +75,8 @@ router.put('/:id', async (req, res, next) => {
     res.json({
       id: req.params.id,
       name,
-      targetAmount: Number(targetAmount),
-      currentAmount: Number(currentAmount),
+      targetAmount: safeTargetAmount,
+      currentAmount: safeCurrentAmount,
       emoji,
       deadline: safeDeadline
     });
