@@ -63,7 +63,7 @@ const API_CATEGORIES_URL = `${BASE_URL}/categories`;
 export default function App() {
   const [activeView, setActiveView] = useState<'dashboard' | 'transactions' | 'budget' | 'savings' | 'categories'>('dashboard');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [categories, setCategories] = useState<Category[]>(initialCategories);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [budgets, setBudgets] = useState<BudgetItem[]>([]);
   const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
   const [showAddTransaction, setShowAddTransaction] = useState(false);
