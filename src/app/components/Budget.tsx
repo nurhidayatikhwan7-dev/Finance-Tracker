@@ -20,12 +20,14 @@ export default function Budget({ budgets, categories, transactions, onAdd, onUpd
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
 
+  // 🧠 OTAK UTAMA: Pemetaan data budget dengan transaksi & kategori dari database cloud
   const budgetData = useMemo(() => {
     return budgets.map(budget => {
-      // 🛡️ PAKSA STRING: Konversi kedua ID ke string agar pencarian objek kategori 100% akurat
-      const category = categories.find(c => String(c.id) === String(budget.categoryId));
+      // 🛡️ AMANKAN ID: Deteksi camelCase ataupun format underscore dari database MySQL
+      const bCategoryId = budget.categoryId || (budget as any).category_id;
+      const category = categories.find(c => String(c.id) === String(bCategoryId));
 
-      // Calculate spent amount for this category in current month
+      // Hitung total pengeluaran transaksi berdasarkan kategori ini di bulan berjalan
       const spent = transactions
         .filter(t => {
           const date = new Date(t.date);
@@ -43,6 +45,7 @@ export default function Budget({ budgets, categories, transactions, onAdd, onUpd
 
       return {
         ...budget,
+        categoryId: bCategoryId, // Paksa sinkron ke camelCase agar aman di komponen bawah
         category,
         spent,
         remaining,
@@ -53,7 +56,7 @@ export default function Budget({ budgets, categories, transactions, onAdd, onUpd
   }, [budgets, categories, transactions, currentMonth, currentYear]);
 
   const availableCategories = useMemo(() => {
-    const budgetedCategoryIds = budgets.map(b => String(b.categoryId));
+    const budgetedCategoryIds = budgets.map(b => String(b.categoryId || (b as any).category_id));
     return categories.filter(c => c.type === 'expense' && !budgetedCategoryIds.includes(String(c.id)));
   }, [categories, budgets]);
 
@@ -90,19 +93,17 @@ export default function Budget({ budgets, categories, transactions, onAdd, onUpd
     }).format(amount);
   };
   
-  // 🛡️ Pastikan semua item dikonversi ke Number secara ketat untuk mencegah NaN
+  // 🛡️ AKUMULASI RINGKASAN AMAN DARI NaN
   const totalBudget = budgets.reduce((sum, b) => {
     const amount = Number(b.amount);
     return sum + (isNaN(amount) ? 0 : amount);
   }, 0);
 
-  // Paksa objek 'b' dibaca sebagai 'any' agar TypeScript tidak protes tentang properti spent
-  const totalSpent = (typeof budgetData !== 'undefined' ? budgetData : budgets).reduce((sum, b: any) => {
+  const totalSpent = budgetData.reduce((sum, b) => {
     const spent = Number(b.spent || 0);
     return sum + (isNaN(spent) ? 0 : spent);
   }, 0);
 
-  // Hitung sisa budget secara aman
   const totalRemaining = totalBudget - totalSpent;
   
   return (
@@ -214,8 +215,8 @@ export default function Budget({ budgets, categories, transactions, onAdd, onUpd
       {/* Budget Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {budgetData.map((budget) => {
-          // 🛡️ PAKSA STRING: Sinkronisasi pemanggilan emoji kategori di komponen bawah
-          const currentCategory = categories.find(c => String(c.id) === String(budget.categoryId));
+          // Gunakan category hasil deteksi aman dari useMemo di atas
+          const currentCategory = budget.category;
 
           return (
             <div
