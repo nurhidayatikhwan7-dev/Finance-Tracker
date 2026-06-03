@@ -89,7 +89,7 @@ export default function Budget({ budgets, categories, transactions, onAdd, onUpd
     }).format(amount);
   };
   
-  // 🛡️ Pastikan semua item dikonversi ke Number secara ketat untuk mencegah NaN
+ // 🛡️ Pastikan semua item dikonversi ke Number secara ketat untuk mencegah NaN
   const totalBudget = budgets.reduce((sum, b) => {
     const amount = Number(b.amount);
     return sum + (isNaN(amount) ? 0 : amount);
@@ -212,121 +212,114 @@ export default function Budget({ budgets, categories, transactions, onAdd, onUpd
 
       {/* Budget Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {budgetData.map((budget) => {
-          // Cocokkan emoji kategori secara langsung di sisi frontend
-          const currentCategory = categories.find(c => c.id === budget.categoryId);
-
-          return (
-            <div
-              key={budget.id}
-              className={`bg-white rounded-xl p-6 shadow-sm border-2 ${
-                budget.isOverBudget ? 'border-red-300' : 'border-slate-200'
-              } hover:shadow-md transition-all`}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center text-2xl">
-                    {currentCategory ? currentCategory.emoji : '📊'}
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-slate-800">
-                      {currentCategory ? currentCategory.name : budget.category?.name}
-                    </h3>
-                    <p className="text-xs text-slate-500">Per bulan</p>
-                  </div>
+        {budgetData.map((budget) => (
+          <div
+            key={budget.id}
+            className={`bg-white rounded-xl p-6 shadow-sm border-2 ${
+              budget.isOverBudget ? 'border-red-300' : 'border-slate-200'
+            } hover:shadow-md transition-all`}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center text-2xl">
+                  {budget.category?.emoji}
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => startEdit(budget)}
-                    className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => onDelete(budget.id)}
-                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                <div>
+                  <h3 className="font-semibold text-slate-800">{budget.category?.name}</h3>
+                  <p className="text-xs text-slate-500">Per bulan</p>
                 </div>
               </div>
-
-              {editingId === budget.id ? (
-                <div className="mb-4">
-                  <input
-                    type="number"
-                    value={editAmount}
-                    onChange={(e) => setEditAmount(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <div className="flex gap-2 mt-2">
-                    <button
-                      onClick={() => handleUpdateBudget(budget.id)}
-                      className="flex-1 px-4 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
-                    >
-                      Simpan
-                    </button>
-                    <button
-                      onClick={() => setEditingId(null)}
-                      className="flex-1 px-4 py-1 bg-slate-200 text-slate-700 rounded text-sm hover:bg-slate-300"
-                    >
-                      Batal
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="mb-4">
-                  <div className="flex items-baseline justify-between mb-1">
-                    <span className="text-sm text-slate-500">Terpakai</span>
-                    <span className="text-lg font-semibold text-slate-800">
-                      {formatCurrency(budget.spent)}
-                    </span>
-                  </div>
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-sm text-slate-500">Budget</span>
-                    <span className="text-sm text-slate-600">{formatCurrency(budget.amount)}</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Progress Bar */}
-              <div className="mb-3">
-                <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${
-                      budget.isOverBudget
-                        ? 'bg-gradient-to-r from-red-500 to-rose-500'
-                        : 'bg-gradient-to-r from-blue-500 to-purple-500'
-                    }`}
-                    style={{ width: `${budget.percentage}%` }}
-                  />
-                </div>
-                <p className="text-xs text-slate-500 mt-1 text-right">
-                  {Math.round(budget.percentage)}% terpakai
-                </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => startEdit(budget)}
+                  className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => onDelete(budget.id)}
+                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
-
-              {/* Remaining */}
-              <div className={`flex items-center justify-between p-3 rounded-lg ${
-                budget.isOverBudget ? 'bg-red-50' : 'bg-slate-50'
-              }`}>
-                <span className="text-sm font-medium text-slate-700">Sisa</span>
-                <span className={`font-semibold ${
-                  budget.isOverBudget ? 'text-red-600' : 'text-green-600'
-                }`}>
-                  {formatCurrency(budget.remaining)}
-                </span>
-              </div>
-
-              {budget.isOverBudget && (
-                <div className="mt-3 flex items-center gap-2 text-red-600 text-sm">
-                  <AlertCircle className="w-4 h-4" />
-                  <span>Melebihi budget!</span>
-                </div>
-              )}
             </div>
-          );
-        })}
+
+            {editingId === budget.id ? (
+              <div className="mb-4">
+                <input
+                  type="number"
+                  value={editAmount}
+                  onChange={(e) => setEditAmount(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={() => handleUpdateBudget(budget.id)}
+                    className="flex-1 px-4 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
+                  >
+                    Simpan
+                  </button>
+                  <button
+                    onClick={() => setEditingId(null)}
+                    className="flex-1 px-4 py-1 bg-slate-200 text-slate-700 rounded text-sm hover:bg-slate-300"
+                  >
+                    Batal
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mb-4">
+                <div className="flex items-baseline justify-between mb-1">
+                  <span className="text-sm text-slate-500">Terpakai</span>
+                  <span className="text-lg font-semibold text-slate-800">
+                    {formatCurrency(budget.spent)}
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-sm text-slate-500">Budget</span>
+                  <span className="text-sm text-slate-600">{formatCurrency(budget.amount)}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Progress Bar */}
+            <div className="mb-3">
+              <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    budget.isOverBudget
+                      ? 'bg-gradient-to-r from-red-500 to-rose-500'
+                      : 'bg-gradient-to-r from-blue-500 to-purple-500'
+                  }`}
+                  style={{ width: `${budget.percentage}%` }}
+                />
+              </div>
+              <p className="text-xs text-slate-500 mt-1 text-right">
+                {Math.round(budget.percentage)}% terpakai
+              </p>
+            </div>
+
+            {/* Remaining */}
+            <div className={`flex items-center justify-between p-3 rounded-lg ${
+              budget.isOverBudget ? 'bg-red-50' : 'bg-slate-50'
+            }`}>
+              <span className="text-sm font-medium text-slate-700">Sisa</span>
+              <span className={`font-semibold ${
+                budget.isOverBudget ? 'text-red-600' : 'text-green-600'
+              }`}>
+                {formatCurrency(budget.remaining)}
+              </span>
+            </div>
+
+            {budget.isOverBudget && (
+              <div className="mt-3 flex items-center gap-2 text-red-600 text-sm">
+                <AlertCircle className="w-4 h-4" />
+                <span>Melebihi budget!</span>
+              </div>
+            )}
+          </div>
+        ))}
 
         {budgetData.length === 0 && (
           <div className="col-span-full bg-white rounded-xl p-12 shadow-sm border border-slate-200 text-center">
