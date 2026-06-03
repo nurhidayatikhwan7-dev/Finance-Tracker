@@ -242,11 +242,22 @@ export default function App() {
     }
   };
 
+  const fetchSavingsData = async () => {
+    try {
+      const response = await axios.get(API_SAVINGS_URL);
+      if (response.data) {
+        setSavingsGoals(response.data);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   const addSavingsGoal = async (goal: Omit<SavingsGoal, 'id'>) => {
     try {
       const response = await axios.post(API_SAVINGS_URL, goal);
-      if (response.status === 201) {
-        setSavingsGoals([...savingsGoals, response.data]);
+      if (response.status === 201 || response.status === 200) {
+        await fetchSavingsData();
       }
     } catch (error) {
       console.error(error);
@@ -255,9 +266,24 @@ export default function App() {
 
   const updateSavingsGoal = async (id: string, updates: Partial<SavingsGoal>) => {
     try {
-      const response = await axios.put(`${API_SAVINGS_URL}/${id}`, updates);
-      if (response.status === 200) {
-        setSavingsGoals(savingsGoals.map(g => g.id === id ? { ...g, ...updates } : g));
+      const currentGoal = savingsGoals.find(g => g.id === id);
+      if (!currentGoal) return;
+
+      const fullData = {
+        name: updates.name !== undefined ? updates.name : currentGoal.name,
+        targetAmount: updates.targetAmount !== undefined ? Number(updates.targetAmount) : Number(currentGoal.targetAmount),
+        currentAmount: updates.currentAmount !== undefined ? Number(updates.currentAmount) : Number(currentGoal.currentAmount),
+        emoji: updates.emoji !== undefined ? updates.emoji : currentGoal.emoji,
+        deadline: updates.deadline !== undefined ? updates.deadline : currentGoal.deadline
+      };
+
+      if (fullData.deadline && typeof fullData.deadline === 'string') {
+        fullData.deadline = fullData.deadline.includes('T') ? fullData.deadline.split('T')[0] : fullData.deadline.slice(0, 10);
+      }
+
+      const response = await axios.put(`${API_SAVINGS_URL}/${id}`, fullData);
+      if (response.status === 200 || response.status === 201) {
+        await fetchSavingsData();
       }
     } catch (error) {
       console.error(error);
@@ -285,8 +311,8 @@ export default function App() {
 
     try {
       const response = await axios.delete(`${API_SAVINGS_URL}/${id}`);
-      if (response.status === 200) {
-        setSavingsGoals(savingsGoals.filter(g => g.id !== id));
+      if (response.status === 200 || response.status === 201) {
+        await fetchSavingsData();
         Swal.fire({ title: 'Terhapus!', text: 'Target tabungan berhasil dihapus.', icon: 'success', confirmButtonColor: '#3b82f6' });
       }
     } catch (error) {
