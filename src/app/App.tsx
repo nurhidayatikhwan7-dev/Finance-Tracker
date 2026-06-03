@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { Home, Receipt, PieChart, Target, FolderOpen, Plus } from 'lucide-react';
@@ -53,27 +53,6 @@ const initialCategories: Category[] = [
   { id: '8', name: 'Health & Fitness', emoji: '🍎', type: 'expense' },
 ];
 
-const initialTransactions: Transaction[] = [
-  { id: '1', name: 'Gaji Bulanan', amount: 8000000, category: 'Pemasukan', type: 'income', date: '2026-05-01', emoji: '💰' },
-  { id: '2', name: 'Makan Siang', amount: 50000, category: 'Food & Beverage', type: 'expense', date: '2026-05-23', emoji: '🍔' },
-  { id: '3', name: 'Bensin', amount: 100000, category: 'Transport', type: 'expense', date: '2026-05-22', emoji: '🚗' },
-  { id: '4', name: 'Netflix', amount: 186000, category: 'Entertainment', type: 'expense', date: '2026-05-20', emoji: '🎮' },
-  { id: '5', name: 'Belanja Bulanan', amount: 1500000, category: 'Shopping', type: 'expense', date: '2026-05-15', emoji: '🛍️' },
-];
-
-const initialBudgets: BudgetItem[] = [
-  { id: '1', categoryId: '2', amount: 2000000, period: 'monthly' },
-  { id: '2', categoryId: '3', amount: 500000, period: 'monthly' },
-  { id: '3', categoryId: '4', amount: 800000, period: 'monthly' },
-  { id: '4', categoryId: '5', amount: 200000, period: 'monthly' },
-];
-
-const initialSavingsGoals: SavingsGoal[] = [
-  { id: '1', name: 'Liburan Bali', targetAmount: 10000000, currentAmount: 3500000, emoji: '🏖️', deadline: '2026-12-31' },
-  { id: '2', name: 'Emergency Fund', targetAmount: 30000000, currentAmount: 15000000, emoji: '🚨', deadline: '2027-06-30' },
-  { id: '3', name: 'Laptop Baru', targetAmount: 15000000, currentAmount: 8000000, emoji: '💻', deadline: '2026-09-30' },
-];
-
 const BASE_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:3001/api';
 
 const API_TRANSACTIONS_URL = `${BASE_URL}/transactions`;
@@ -83,10 +62,10 @@ const API_CATEGORIES_URL = `${BASE_URL}/categories`;
 
 export default function App() {
   const [activeView, setActiveView] = useState<'dashboard' | 'transactions' | 'budget' | 'savings' | 'categories'>('dashboard');
-  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>(initialCategories);
-  const [budgets, setBudgets] = useState<BudgetItem[]>(initialBudgets);
-  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>(initialSavingsGoals);
+  const [budgets, setBudgets] = useState<BudgetItem[]>([]);
+  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
   const [showAddTransaction, setShowAddTransaction] = useState(false);
 
   const navItems = [
@@ -97,11 +76,36 @@ export default function App() {
     { id: 'categories', label: 'Kategori', icon: FolderOpen },
   ];
 
+  // 🔄 FUNGSI UTAMA SINKRONISASI DATA DINAMIS DENGAN DATABASE DATABASE CLOUD
+  const fetchAllCloudData = async () => {
+    try {
+      const [resTransactions, resSavings, resBudgets, resCategories] = await Promise.all([
+        axios.get(API_TRANSACTIONS_URL),
+        axios.get(API_SAVINGS_URL),
+        axios.get(API_BUDGETS_URL),
+        axios.get(API_CATEGORIES_URL).catch(() => ({ data: initialCategories }))
+      ]);
+
+      if (resTransactions.data) setTransactions(resTransactions.data);
+      if (resSavings.data) setSavingsGoals(resSavings.data);
+      if (resBudgets.data) setBudgets(resBudgets.data);
+      if (resCategories.data && resCategories.data.length > 0) setCategories(resCategories.data);
+    } catch (error) {
+      console.error("Gagal sinkronisasi data dengan database cloud:", error);
+    }
+  };
+
+  // Menjalankan fetch data otomatis saat web pertama kali dibuka oleh siapa pun
+  useEffect(() => {
+    fetchAllCloudData();
+  }, []);
+
+  // 💰 MANAJEMEN AKSI TRANSAKSI
   const addTransaction = async (transaction: Omit<Transaction, 'id'>) => {
     try {
       const response = await axios.post(API_TRANSACTIONS_URL, transaction);
-      if (response.status === 201) {
-        setTransactions([response.data, ...transactions]);
+      if (response.status === 200 || response.status === 201) {
+        await fetchAllCloudData();
       }
     } catch (error) {
       console.error(error);
@@ -119,18 +123,15 @@ export default function App() {
       confirmButtonText: 'Ya, Hapus!',
       cancelButtonText: 'Batal',
       background: '#ffffff',
-      customClass: {
-        title: 'text-slate-800 font-bold',
-        popup: 'rounded-xl'
-      }
+      customClass: { title: 'text-slate-800 font-bold', popup: 'rounded-xl' }
     });
 
     if (!result.isConfirmed) return;
 
     try {
       const response = await axios.delete(`${API_TRANSACTIONS_URL}/${id}`);
-      if (response.status === 200) {
-        setTransactions(transactions.filter(t => t.id !== id));
+      if (response.status === 200 || response.status === 201) {
+        await fetchAllCloudData();
         Swal.fire({ title: 'Terhapus!', text: 'Transaksi berhasil dihapus.', icon: 'success', confirmButtonColor: '#3b82f6' });
       }
     } catch (error) {
@@ -141,19 +142,20 @@ export default function App() {
   const updateTransaction = async (id: string, updates: Partial<Transaction>) => {
     try {
       const response = await axios.put(`${API_TRANSACTIONS_URL}/${id}`, updates);
-      if (response.status === 200) {
-        setTransactions(transactions.map(t => t.id === id ? { ...t, ...updates } : t));
+      if (response.status === 200 || response.status === 201) {
+        await fetchAllCloudData();
       }
     } catch (error) {
       console.error(error);
     }
   };
 
+  // 📂 MANAJEMEN AKSI KATEGORI
   const addCategory = async (category: Omit<Category, 'id'>) => {
     try {
       const response = await axios.post(API_CATEGORIES_URL, category);
-      if (response.status === 201) {
-        setCategories([...categories, response.data]);
+      if (response.status === 200 || response.status === 201) {
+        await fetchAllCloudData();
       }
     } catch (error) {
       console.error(error);
@@ -171,18 +173,15 @@ export default function App() {
       confirmButtonText: 'Ya, Hapus!',
       cancelButtonText: 'Batal',
       background: '#ffffff',
-      customClass: {
-        title: 'text-slate-800 font-bold',
-        popup: 'rounded-xl'
-      }
+      customClass: { title: 'text-slate-800 font-bold', popup: 'rounded-xl' }
     });
 
     if (!result.isConfirmed) return;
 
     try {
       const response = await axios.delete(`${API_CATEGORIES_URL}/${id}`);
-      if (response.status === 200) {
-        setCategories(categories.filter(c => c.id !== id));
+      if (response.status === 200 || response.status === 201) {
+        await fetchAllCloudData();
         Swal.fire({ title: 'Terhapus!', text: 'Kategori berhasil dihapus.', icon: 'success', confirmButtonColor: '#3b82f6' });
       }
     } catch (error) {
@@ -190,11 +189,12 @@ export default function App() {
     }
   };
 
+  // 📊 MANAJEMEN AKSI BUDGETING
   const addBudget = async (budget: Omit<BudgetItem, 'id'>) => {
     try {
       const response = await axios.post(API_BUDGETS_URL, budget);
-      if (response.status === 201) {
-        setBudgets([...budgets, response.data]);
+      if (response.status === 200 || response.status === 201) {
+        await fetchAllCloudData();
       }
     } catch (error) {
       console.error(error);
@@ -204,8 +204,8 @@ export default function App() {
   const updateBudget = async (id: string, amount: number) => {
     try {
       const response = await axios.put(`${API_BUDGETS_URL}/${id}`, { amount });
-      if (response.status === 200) {
-        setBudgets(budgets.map(b => b.id === id ? { ...b, amount } : b));
+      if (response.status === 200 || response.status === 201) {
+        await fetchAllCloudData();
       }
     } catch (error) {
       console.error(error);
@@ -223,18 +223,15 @@ export default function App() {
       confirmButtonText: 'Ya, Hapus!',
       cancelButtonText: 'Batal',
       background: '#ffffff',
-      customClass: {
-        title: 'text-slate-800 font-bold',
-        popup: 'rounded-xl'
-      }
+      customClass: { title: 'text-slate-800 font-bold', popup: 'rounded-xl' }
     });
 
     if (!result.isConfirmed) return;
 
     try {
       const response = await axios.delete(`${API_BUDGETS_URL}/${id}`);
-      if (response.status === 200) {
-        setBudgets(budgets.filter(b => b.id !== id));
+      if (response.status === 200 || response.status === 201) {
+        await fetchAllCloudData();
         Swal.fire({ title: 'Terhapus!', text: 'Budget berhasil dihapus.', icon: 'success', confirmButtonColor: '#3b82f6' });
       }
     } catch (error) {
@@ -242,22 +239,12 @@ export default function App() {
     }
   };
 
-  const fetchSavingsData = async () => {
-    try {
-      const response = await axios.get(API_SAVINGS_URL);
-      if (response.data) {
-        setSavingsGoals(response.data);
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
+  // 🎯 MANAJEMEN AKSI TARGET TABUNGAN
   const addSavingsGoal = async (goal: Omit<SavingsGoal, 'id'>) => {
     try {
       const response = await axios.post(API_SAVINGS_URL, goal);
-      if (response.status === 201 || response.status === 200) {
-        await fetchSavingsData();
+      if (response.status === 200 || response.status === 201) {
+        await fetchAllCloudData();
       }
     } catch (error) {
       console.error(error);
@@ -283,7 +270,7 @@ export default function App() {
 
       const response = await axios.put(`${API_SAVINGS_URL}/${id}`, fullData);
       if (response.status === 200 || response.status === 201) {
-        await fetchSavingsData();
+        await fetchAllCloudData();
       }
     } catch (error) {
       console.error(error);
@@ -301,10 +288,7 @@ export default function App() {
       confirmButtonText: 'Ya, Hapus!',
       cancelButtonText: 'Batal',
       background: '#ffffff',
-      customClass: {
-        title: 'text-slate-800 font-bold',
-        popup: 'rounded-xl'
-      }
+      customClass: { title: 'text-slate-800 font-bold', popup: 'rounded-xl' }
     });
 
     if (!result.isConfirmed) return;
@@ -312,7 +296,7 @@ export default function App() {
     try {
       const response = await axios.delete(`${API_SAVINGS_URL}/${id}`);
       if (response.status === 200 || response.status === 201) {
-        await fetchSavingsData();
+        await fetchAllCloudData();
         Swal.fire({ title: 'Terhapus!', text: 'Target tabungan berhasil dihapus.', icon: 'success', confirmButtonColor: '#3b82f6' });
       }
     } catch (error) {
