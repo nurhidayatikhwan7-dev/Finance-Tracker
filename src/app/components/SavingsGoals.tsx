@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { SavingsGoal } from '../App';
 import { Plus, Edit2, Trash2, TrendingUp, Calendar, Target } from 'lucide-react';
 import { differenceInDays, format } from 'date-fns';
+import Swal from 'sweetalert2'; // 🛡️ Tambahkan import SweetAlert2
 
 interface SavingsGoalsProps {
   goals: SavingsGoal[];
@@ -29,31 +30,53 @@ export default function SavingsGoals({ goals, onAdd, onUpdate, onDelete }: Savin
   });
   const [addAmount, setAddAmount] = useState<{ [key: string]: string }>({});
 
+  // 🛡️ VALIDASI UNTUK TAMBAH TARGET BARU
   const handleAddGoal = () => {
-    if (newGoal.name && newGoal.targetAmount && newGoal.deadline) {
-      onAdd({
-        name: newGoal.name,
-        targetAmount: parseFloat(newGoal.targetAmount),
-        currentAmount: parseFloat(newGoal.currentAmount || '0'),
-        emoji: newGoal.emoji,
-        deadline: newGoal.deadline,
+    if (!newGoal.name.trim() || !newGoal.targetAmount || !newGoal.deadline) {
+      Swal.fire({
+        title: 'Kolom Belum Lengkap!',
+        text: 'Semua kolom (Nama, Target Jumlah, dan Deadline) wajib diisi ya!',
+        icon: 'warning',
+        confirmButtonColor: '#3b82f6',
+        background: '#ffffff',
+        customClass: { title: 'text-slate-800 font-bold', popup: 'rounded-xl' }
       });
-      setNewGoal({ name: '', targetAmount: '', currentAmount: '', emoji: '🎯', deadline: '' });
-      setShowAddForm(false);
+      return; // Stop eksekusi agar tidak mengirim data kosong ke MySQL
     }
+
+    onAdd({
+      name: newGoal.name,
+      targetAmount: parseFloat(newGoal.targetAmount),
+      currentAmount: parseFloat(newGoal.currentAmount || '0'),
+      emoji: newGoal.emoji,
+      deadline: newGoal.deadline,
+    });
+    setNewGoal({ name: '', targetAmount: '', currentAmount: '', emoji: '🎯', deadline: '' });
+    setShowAddForm(false);
   };
 
+  // 🛡️ VALIDASI UNTUK EDIT TARGET LAMA
   const handleUpdateGoal = (id: string) => {
-    if (editGoal.name && editGoal.targetAmount && editGoal.deadline) {
-      onUpdate(id, {
-        name: editGoal.name,
-        targetAmount: parseFloat(editGoal.targetAmount),
-        currentAmount: parseFloat(editGoal.currentAmount),
-        emoji: editGoal.emoji,
-        deadline: editGoal.deadline,
+    if (!editGoal.name.trim() || !editGoal.targetAmount || !editGoal.deadline) {
+      Swal.fire({
+        title: 'Kolom Tidak Boleh Kosong!',
+        text: 'Nama, Target, dan Deadline harus tetap terisi ya!',
+        icon: 'warning',
+        confirmButtonColor: '#3b82f6',
+        background: '#ffffff',
+        customClass: { title: 'text-slate-800 font-bold', popup: 'rounded-xl' }
       });
-      setEditingId(null);
+      return; // Stop eksekusi jika kolom dikosongkan saat edit
     }
+
+    onUpdate(id, {
+      name: editGoal.name,
+      targetAmount: parseFloat(editGoal.targetAmount),
+      currentAmount: parseFloat(editGoal.currentAmount),
+      emoji: editGoal.emoji,
+      deadline: editGoal.deadline,
+    });
+    setEditingId(null);
   };
 
   const startEdit = (goal: SavingsGoal) => {
@@ -275,7 +298,7 @@ export default function SavingsGoals({ goals, onAdd, onUpdate, onDelete }: Savin
                     <label className="block text-sm font-medium text-slate-700 mb-2">Deadline</label>
                     <input
                       type="date"
-                      value={editGoal.deadline}
+                      value={editGoal.deadline ? editGoal.deadline.split('T')[0] : ''}
                       onChange={(e) => setEditGoal({ ...editGoal, deadline: e.target.value })}
                       className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
