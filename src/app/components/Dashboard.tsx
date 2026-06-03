@@ -1,6 +1,6 @@
 import { Transaction, Category, BudgetItem, SavingsGoal } from '../App';
 import { TrendingUp, TrendingDown, Wallet, Target, ArrowUpRight, ArrowDownRight } from 'lucide-react';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { useMemo } from 'react';
 
 interface DashboardProps {
@@ -35,16 +35,25 @@ export default function Dashboard({ transactions, categories, budgets, savingsGo
 
   const balance = totalIncome - totalExpense;
 
+  // 🛡️ AMANKAN GRAFIK: Gabungkan pencocokan string nama dan ID dari database cloud
   const expenseByCategory = useMemo(() => {
     const categoryTotals: Record<string, number> = {};
+    
     monthlyTransactions
       .filter(t => t.type === 'expense')
       .forEach(t => {
-        categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
+        // Cari objek kategori asli untuk standarisasi nama
+        const foundCat = categories.find(c => 
+          (t.category && c.name && t.category.toLowerCase() === c.name.toLowerCase()) ||
+          String((t as any).categoryId || (t as any).category_id) === String(c.id)
+        );
+
+        const targetName = foundCat ? foundCat.name : (t.category || 'Lainnya');
+        categoryTotals[targetName] = (categoryTotals[targetName] || 0) + t.amount;
       });
 
     return Object.entries(categoryTotals).map(([name, value]) => {
-      const category = categories.find(c => c.name === name);
+      const category = categories.find(c => c.name.toLowerCase() === name.toLowerCase());
       return {
         name,
         value,
@@ -58,7 +67,7 @@ export default function Dashboard({ transactions, categories, budgets, savingsGo
       name: goal.name,
       current: goal.currentAmount,
       target: goal.targetAmount,
-      percentage: Math.round((goal.currentAmount / goal.targetAmount) * 100),
+      percentage: goal.targetAmount > 0 ? Math.round((goal.currentAmount / goal.targetAmount) * 100) : 0,
     }));
   }, [savingsGoals]);
 
@@ -143,7 +152,7 @@ export default function Dashboard({ transactions, categories, budgets, savingsGo
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={(entry) => `${entry.name}: ${Math.round((entry.value / totalExpense) * 100)}%`}
+                  label={(entry) => `${entry.name}: ${totalExpense > 0 ? Math.round((entry.value / totalExpense) * 100) : 0}%`}
                   outerRadius={100}
                   fill="#8884d8"
                   dataKey="value"
@@ -198,7 +207,7 @@ export default function Dashboard({ transactions, categories, budgets, savingsGo
         <h3 className="text-lg font-semibold text-slate-800 mb-4">Rincian Kategori</h3>
         {expenseByCategory.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {expenseByCategory.map((category, index) => (
+            {expenseByCategory.map((category) => (
               <div
                 key={category.name}
                 className="p-4 rounded-lg border-2 border-slate-100 hover:border-purple-200 transition-all"
@@ -208,7 +217,7 @@ export default function Dashboard({ transactions, categories, budgets, savingsGo
                   <div className="flex-1">
                     <h4 className="font-medium text-slate-800">{category.name}</h4>
                     <p className="text-xs text-slate-500">
-                      {Math.round((category.value / totalExpense) * 100)}% dari total
+                      {totalExpense > 0 ? Math.round((category.value / totalExpense) * 100) : 0}% dari total
                     </p>
                   </div>
                 </div>
