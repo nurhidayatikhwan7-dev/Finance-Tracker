@@ -74,6 +74,8 @@ export default function Budget({ budgets, categories, transactions, onAdd, onUpd
 
   const handleUpdateBudget = (id: string) => {
     if (editAmount) {
+      const currentBudget = budgetData.find(b => b.id === id);
+      if (!currentBudget) return;
       onUpdate(id, parseFloat(editAmount));
       setEditingId(null);
       setEditAmount('');
