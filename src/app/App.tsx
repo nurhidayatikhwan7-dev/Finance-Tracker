@@ -201,14 +201,33 @@ export default function App() {
     }
   };
 
-  const updateBudget = async (id: string, amount: number) => {
+ const updateBudget = async (id: string, amount: number) => {
     try {
-      const response = await axios.put(`${API_BUDGETS_URL}/${id}`, { amount });
+      // 1. Cari data budget lama di dalam state agar properti kategorinya tidak hilang
+      const currentB = budgets.find(b => String(b.id) === String(id));
+      if (!currentB) return;
+
+      // 2. Ambil categoryId lama, toleran terhadap camelCase maupun underscore database
+      const oldCategoryId = currentB.categoryId || (currentB as any).category_id;
+
+      // 3. Susun payload secara utuh agar MySQL tidak mengosongkan kolom lain
+      const fullPayload = {
+        categoryId: oldCategoryId,
+        amount: Number(amount),
+        period: currentB.period || 'monthly'
+      };
+
+      console.log("Mengirim update budget ke cloud:", fullPayload);
+
+     
+      const response = await axios.put(`${API_BUDGETS_URL}/${id}`, fullPayload);
+      
       if (response.status === 200 || response.status === 201) {
+        
         await fetchAllCloudData();
       }
     } catch (error) {
-      console.error(error);
+      console.error("Gagal melakukan update nominal budget:", error);
     }
   };
 
