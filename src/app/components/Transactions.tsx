@@ -63,17 +63,23 @@ export default function Transactions({ transactions, categories, onDelete }: Tra
     }).format(amount);
   };
 
-  const totalIncome = useMemo(() => {
-    return filteredTransactions
-      .filter(t => t.type === 'income')
-      .reduce((sum, t) => sum + t.amount, 0);
-  }, [filteredTransactions]);
+ const totalIncome = useMemo(() => {
+  return transactions
+    .filter(t => t.type === 'income')
+    .reduce((sum, t) => {
+      const amt = Number(t.amount);
+      return sum + (isNaN(amt) ? 0 : amt);
+    }, 0);
+}, [transactions]);
 
-  const totalExpense = useMemo(() => {
-    return filteredTransactions
-      .filter(t => t.type === 'expense')
-      .reduce((sum, t) => sum + t.amount, 0);
-  }, [filteredTransactions]);
+const totalExpense = useMemo(() => {
+  return transactions
+    .filter(t => t.type === 'expense')
+    .reduce((sum, t) => {
+      const amt = Number(t.amount);
+      return sum + (isNaN(amt) ? 0 : amt);
+    }, 0);
+}, [transactions]);
 
   return (
     <div className="p-8">
