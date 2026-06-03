@@ -151,7 +151,7 @@ export default function AddTransactionModal({ categories, onAdd, onClose }: AddT
                   </label>
                   <input
                     type="date"
-                    value={transaction.date}
+                    value={transaction.date ? transaction.date.split('T')[0] : ''}
                     onChange={(e) => setTransaction({ ...transaction, date: e.target.value })}
                     className="w-full px-4 py-3 border-2 border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                     required
