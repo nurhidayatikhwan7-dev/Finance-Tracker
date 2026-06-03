@@ -5,6 +5,7 @@ import { Plus, Trash2, TrendingUp, TrendingDown } from 'lucide-react';
 interface CategoriesProps {
   categories: Category[];
   onAdd: (category: Omit<Category, 'id'>) => void;
+  onUpdate: (id: string, updates: Partial<Category>) => void;
   onDelete: (id: string) => void;
 }
 

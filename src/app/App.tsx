@@ -162,6 +162,18 @@ export default function App() {
     }
   };
 
+  // ⚙️ FUNGSI BARU: MENYINKRONKAN AKSI EDIT KATEGORI KE API CLOUD
+  const updateCategory = async (id: string, updates: Partial<Category>) => {
+    try {
+      const response = await axios.put(`${API_CATEGORIES_URL}/${id}`, updates);
+      if (response.status === 200 || response.status === 201) {
+        await fetchAllCloudData(); // Ambil data terbaru dari database setelah berhasil edit
+      }
+    } catch (error) {
+      console.error("Gagal memperbarui kategori di database cloud:", error);
+    }
+  };
+
   const deleteCategory = async (id: string) => {
     const result = await Swal.fire({
       title: 'Hapus Kategori?',
@@ -401,6 +413,7 @@ export default function App() {
           <Categories
             categories={categories}
             onAdd={addCategory}
+            onUpdate={updateCategory}
             onDelete={deleteCategory}
           />
         )}

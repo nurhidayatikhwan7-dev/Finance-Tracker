@@ -31,6 +31,28 @@ router.post('/', async (req, res, next) => {
   }
 });
 
+// ⚙️ PUT update category (FITUR BARU UNTUK EDIT KATEGORI)
+router.put('/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { name, emoji, type } = req.body;
+
+    // Menjalankan query UPDATE ke MySQL Cloud menggunakan pool
+    const [result] = await pool.query(
+      'UPDATE categories SET name = ?, emoji = ?, type = ? WHERE id = ?',
+      [name, emoji, type, id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Category not found' });
+    }
+
+    res.json({ message: 'Category updated successfully', id, name, emoji, type });
+  } catch (error) {
+    next(error); // Melempar eror ke middleware global jika database bermasalah
+  }
+});
+
 // DELETE category
 router.delete('/:id', async (req, res, next) => {
   try {
