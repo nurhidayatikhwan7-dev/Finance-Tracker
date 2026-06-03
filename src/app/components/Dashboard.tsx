@@ -14,71 +14,88 @@ export default function Dashboard({ transactions, categories, budgets, savingsGo
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
 
+  // 🛡️ AMANKAN FILTER BULANAN: Cegah Crash dari format tanggal database
   const monthlyTransactions = useMemo(() => {
+    if (!Array.isArray(transactions)) return [];
     return transactions.filter(t => {
+      if (!t.date) return false;
       const date = new Date(t.date);
+      // Jika tanggal tidak valid, loloskan saja agar data tetap muncul dan tidak NaN
+      if (isNaN(date.getTime())) return true; 
       return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
     });
   }, [transactions, currentMonth, currentYear]);
 
+  // 🛡️ AMANKAN PENJUMLAHAN: Paksa konversi ke Number agar terbebas dari RpNaN
   const totalIncome = useMemo(() => {
     return monthlyTransactions
       .filter(t => t.type === 'income')
-      .reduce((sum, t) => sum + t.amount, 0);
+      .reduce((sum, t) => {
+        const amt = Number(t.amount);
+        return sum + (isNaN(amt) ? 0 : amt);
+      }, 0);
   }, [monthlyTransactions]);
 
   const totalExpense = useMemo(() => {
     return monthlyTransactions
       .filter(t => t.type === 'expense')
-      .reduce((sum, t) => sum + t.amount, 0);
+      .reduce((sum, t) => {
+        const amt = Number(t.amount);
+        return sum + (isNaN(amt) ? 0 : amt);
+      }, 0);
   }, [monthlyTransactions]);
 
   const balance = totalIncome - totalExpense;
 
-  // 🛡️ AMANKAN GRAFIK: Gabungkan pencocokan string nama dan ID dari database cloud
+  // 🛡️ AMANKAN GRAFIK: Gabungkan nama teks dan ID secara fleksibel
   const expenseByCategory = useMemo(() => {
     const categoryTotals: Record<string, number> = {};
     
     monthlyTransactions
       .filter(t => t.type === 'expense')
       .forEach(t => {
-        // Cari objek kategori asli untuk standarisasi nama
         const foundCat = categories.find(c => 
           (t.category && c.name && t.category.toLowerCase() === c.name.toLowerCase()) ||
           String((t as any).categoryId || (t as any).category_id) === String(c.id)
         );
 
         const targetName = foundCat ? foundCat.name : (t.category || 'Lainnya');
-        categoryTotals[targetName] = (categoryTotals[targetName] || 0) + t.amount;
+        const amt = Number(t.amount);
+        categoryTotals[targetName] = (categoryTotals[targetName] || 0) + (isNaN(amt) ? 0 : amt);
       });
 
-    return Object.entries(categoryTotals).map(([name, value]) => {
-      const category = categories.find(c => c.name.toLowerCase() === name.toLowerCase());
-      return {
-        name,
-        value,
-        emoji: category?.emoji || '📊',
-      };
-    }).sort((a, b) => b.value - a.value);
+    return Object.entries(categoryTotals)
+      .map(([name, value]) => {
+        const category = categories.find(c => c.name.toLowerCase() === name.toLowerCase());
+        return {
+          name,
+          value,
+          emoji: category?.emoji || '📊',
+        };
+      })
+      .filter(item => item.value > 0)
+      .sort((a, b) => b.value - a.value);
   }, [monthlyTransactions, categories]);
 
   const savingsProgress = useMemo(() => {
+    if (!Array.isArray(savingsGoals)) return [];
     return savingsGoals.map(goal => ({
       name: goal.name,
-      current: goal.currentAmount,
-      target: goal.targetAmount,
-      percentage: goal.targetAmount > 0 ? Math.round((goal.currentAmount / goal.targetAmount) * 100) : 0,
+      current: Number(goal.currentAmount || 0),
+      target: Number(goal.targetAmount || 0),
+      percentage: goal.targetAmount > 0 ? Math.round((Number(goal.currentAmount || 0) / Number(goal.targetAmount || 0)) * 100) : 0,
     }));
   }, [savingsGoals]);
 
   const COLORS = ['#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#ec4899'];
 
   const formatCurrency = (amount: number) => {
+    const val = isNaN(amount) ? 0 : amount;
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
       currency: 'IDR',
       minimumFractionDigits: 0,
-    }).format(amount);
+    }).format(val);
   };
 
   return (
@@ -141,7 +158,6 @@ export default function Dashboard({ transactions, categories, budgets, savingsGo
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Expense by Category - Pie Chart */}
         <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
           <h3 className="text-lg font-semibold text-slate-800 mb-4">Pengeluaran per Kategori</h3>
           {expenseByCategory.length > 0 ? (
@@ -166,12 +182,11 @@ export default function Dashboard({ transactions, categories, budgets, savingsGo
             </ResponsiveContainer>
           ) : (
             <div className="h-64 flex items-center justify-center text-slate-400">
-              Belum ada data pengeluaran
+              Belum ada data pengeluaran bulan ini
             </div>
           )}
         </div>
 
-        {/* Savings Progress */}
         <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
           <h3 className="text-lg font-semibold text-slate-800 mb-4">Progress Target Tabungan</h3>
           <div className="space-y-4">
