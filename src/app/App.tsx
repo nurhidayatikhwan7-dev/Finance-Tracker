@@ -100,7 +100,7 @@ export default function App() {
     fetchAllCloudData();
   }, []);
 
-  // 💰 MANAJEMEN AKSI TRANSAKSI
+  // 📂 MANAJEMEN AKSI TRANSAKSI
   const addTransaction = async (transaction: Omit<Transaction, 'id'>) => {
     try {
       const response = await axios.post(API_TRANSACTIONS_URL, transaction);
@@ -139,14 +139,24 @@ export default function App() {
     }
   };
 
+  // ⚙️ TARUH DI SINI: FUNGSI UPDATE YANG SUDAH DISINKRONKAN DENGAN BACKEND MYSQL
   const updateTransaction = async (id: string, updates: Partial<Transaction>) => {
     try {
-      const response = await axios.put(`${API_TRANSACTIONS_URL}/${id}`, updates);
+      const payload = {
+        name: updates.name, // 🛡️ Mengubah title frontend menjadi name sesuai database kalian
+        amount: updates.amount,
+        type: updates.type,
+        category: updates.category,
+        date: updates.date,
+        emoji: updates.emoji || '📊'
+      };
+
+      const response = await axios.put(`${API_TRANSACTIONS_URL}/${id}`, payload);
       if (response.status === 200 || response.status === 201) {
         await fetchAllCloudData();
       }
     } catch (error) {
-      console.error(error);
+      console.error("Gagal memperbarui transaksi:", error);
     }
   };
 

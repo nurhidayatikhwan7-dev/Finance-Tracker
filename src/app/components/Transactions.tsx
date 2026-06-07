@@ -1,25 +1,35 @@
 import { useState, useMemo } from 'react';
 import { Transaction, Category } from '../App';
-import { Search, Filter, Trash2, TrendingUp, TrendingDown, Calendar } from 'lucide-react';
+import { Search, Filter, Trash2, Edit2, TrendingUp, TrendingDown, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
+import Swal from 'sweetalert2';
 
 interface TransactionsProps {
   transactions: Transaction[];
   categories: Category[];
   onDelete: (id: string) => void;
-  onUpdate: (id: string, updates: Partial<Transaction>) => void;
+  onUpdate: (id: string, updates: Partial<Transaction>) => void; // 🛡️ Terpasang kuat di props interface
 }
 
-export default function Transactions({ transactions, categories, onDelete }: TransactionsProps) {
+export default function Transactions({ transactions, categories, onDelete, onUpdate }: TransactionsProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  // State untuk menampung data transaksi yang sedang diedit inline
+  const [editForm, setEditForm] = useState({
+    name: '',
+    amount: '',
+    type: 'expense' as 'income' | 'expense',
+    category: '',
+    date: '',
+  });
 
   const filteredTransactions = useMemo(() => {
     let filtered = [...transactions];
 
-    // Filter by search query
     if (searchQuery) {
       filtered = filtered.filter(t =>
         t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -27,17 +37,14 @@ export default function Transactions({ transactions, categories, onDelete }: Tra
       );
     }
 
-    // Filter by type
     if (filterType !== 'all') {
       filtered = filtered.filter(t => t.type === filterType);
     }
 
-    // Filter by category
     if (selectedCategory !== 'all') {
       filtered = filtered.filter(t => t.category === selectedCategory);
     }
 
-    // Sort by date (newest first)
     return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [transactions, searchQuery, filterType, selectedCategory]);
 
@@ -55,6 +62,43 @@ export default function Transactions({ transactions, categories, onDelete }: Tra
     return groups;
   }, [filteredTransactions]);
 
+  const startEdit = (t: Transaction) => {
+    setEditingId(t.id);
+    setEditForm({
+      name: t.name,
+      amount: t.amount.toString(),
+      type: t.type,
+      category: t.category || '',
+      date: t.date ? t.date.split('T')[0] : '',
+    });
+  };
+
+  const handleUpdateClick = (id: string) => {
+    if (!editForm.name.trim() || !editForm.amount || !editForm.date) {
+      Swal.fire({
+        title: 'Kolom Belum Lengkap!',
+        text: 'Semua kolom wajib diisi saat mengubah transaksi ya!',
+        icon: 'warning',
+        confirmButtonColor: '#3b82f6',
+      });
+      return;
+    }
+
+    // Mengambil emoji dari data master kategori saat ini agar sinkron di database
+    const matchedCat = categories.find(c => c.name === editForm.category);
+    const updatedEmoji = matchedCat ? matchedCat.emoji : '📊';
+
+    onUpdate(id, {
+      name: editForm.name,
+      amount: parseFloat(editForm.amount),
+      type: editForm.type,
+      category: editForm.category,
+      date: editForm.date,
+      emoji: updatedEmoji
+    });
+    setEditingId(null);
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -63,23 +107,23 @@ export default function Transactions({ transactions, categories, onDelete }: Tra
     }).format(amount);
   };
 
- const totalIncome = useMemo(() => {
-  return transactions
-    .filter(t => t.type === 'income')
-    .reduce((sum, t) => {
-      const amt = Number(t.amount);
-      return sum + (isNaN(amt) ? 0 : amt);
-    }, 0);
-}, [transactions]);
+  const totalIncome = useMemo(() => {
+    return transactions
+      .filter(t => t.type === 'income')
+      .reduce((sum, t) => {
+        const amt = Number(t.amount);
+        return sum + (isNaN(amt) ? 0 : amt);
+      }, 0);
+  }, [transactions]);
 
-const totalExpense = useMemo(() => {
-  return transactions
-    .filter(t => t.type === 'expense')
-    .reduce((sum, t) => {
-      const amt = Number(t.amount);
-      return sum + (isNaN(amt) ? 0 : amt);
-    }, 0);
-}, [transactions]);
+  const totalExpense = useMemo(() => {
+    return transactions
+      .filter(t => t.type === 'expense')
+      .reduce((sum, t) => {
+        const amt = Number(t.amount);
+        return sum + (isNaN(amt) ? 0 : amt);
+      }, 0);
+  }, [transactions]);
 
   return (
     <div className="p-8">
@@ -179,30 +223,92 @@ const totalExpense = useMemo(() => {
                 <h3 className="text-sm font-semibold text-slate-500 mb-4">{date}</h3>
                 <div className="space-y-3">
                   {dayTransactions.map((transaction) => (
-                    <div
-                      key={transaction.id}
-                      className="flex items-center gap-4 p-4 rounded-lg hover:bg-slate-50 transition-colors group"
-                    >
-                      <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center text-2xl">
-                        {transaction.emoji}
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-medium text-slate-800">{transaction.name}</h4>
-                        <p className="text-sm text-slate-500">{transaction.category}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className={`font-semibold ${
-                          transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
-                        }`}>
-                          {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => onDelete(transaction.id)}
-                        className="opacity-0 group-hover:opacity-100 p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
+                    <div key={transaction.id} className="p-4 rounded-lg border border-slate-100 bg-white hover:bg-slate-50 hover:shadow-sm transition-all group">
+                      {editingId === transaction.id ? (
+                        /* 🛠️ BLOK EDIT FORM TRANSAKSI INLINE (MENGGANTIKAN BARIS JIKA DIKLIK EDIT) */
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-500 mb-1">Nama Transaksi</label>
+                            <input
+                              type="text"
+                              value={editForm.name}
+                              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                              className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-500 mb-1">Nominal (Rp)</label>
+                            <input
+                              type="number"
+                              value={editForm.amount}
+                              onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
+                              className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-500 mb-1">Kategori</label>
+                            <select
+                              value={editForm.category}
+                              onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                              className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white"
+                            >
+                              <option value="">Pilih Kategori</option>
+                              {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-500 mb-1">Tipe</label>
+                            <select
+                              value={editForm.type}
+                              onChange={(e) => setEditForm({ ...editForm, type: e.target.value as any })}
+                              className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white"
+                            >
+                              <option value="expense">Pengeluaran</option>
+                              <option value="income">Pemasukan</option>
+                            </select>
+                          </div>
+                          <div className="flex gap-1.5">
+                            <button onClick={() => handleUpdateClick(transaction.id)} className="flex-1 py-2 bg-blue-500 text-white rounded-lg text-xs font-semibold hover:bg-blue-600 transition-colors">
+                              Simpan
+                            </button>
+                            <button onClick={() => setEditingId(null)} className="flex-1 py-2 bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-300 transition-colors">
+                              Batal
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        /* 📊 BARIS TAMPILAN NORMAL BAWAAN ASLI + SUNTIKAN TOMBOL EDIT PENSIL */
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-slate-100 rounded-lg flex items-center justify-center text-2xl">
+                            {transaction.emoji}
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-medium text-slate-800">{transaction.name}</h4>
+                            <p className="text-sm text-slate-500">{transaction.category}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className={`font-semibold ${transaction.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
+                              {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
+                            </p>
+                          </div>
+                          
+                          {/* 🛠️ SINKRONISASI AREA ACTION: TOMBOL EDIT (PENSIL) DAN DELETE (SAMPAH) */}
+                          <div className="flex gap-0.5 items-center opacity-0 group-hover:opacity-100 transition-all">
+                            <button
+                              onClick={() => startEdit(transaction)}
+                              className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => onDelete(transaction.id)}
+                              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
